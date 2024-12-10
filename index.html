@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Panel</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #1c1c1c;
+      color: #ffffff;
+      margin: 0;
+      padding: 0;
+      text-align: center;
+    }
+
+    header {
+      background-color: #ff3e3e;
+      padding: 15px;
+      font-size: 20px;
+      font-weight: bold;
+      color: #fff;
+    }
+
+    .container {
+      padding: 20px;
+    }
+
+    .search-bar {
+      margin: 10px 0;
+    }
+
+    .search-bar input {
+      padding: 10px;
+      width: 250px;
+      font-size: 16px;
+    }
+
+    .search-bar button {
+      padding: 10px;
+      font-size: 16px;
+      background-color: #ff3e3e;
+      border: none;
+      cursor: pointer;
+    }
+
+    .search-bar button:hover {
+      background-color: #ff6666;
+    }
+
+    table {
+      width: 90%;
+      margin: 20px auto;
+      border-collapse: collapse;
+      background-color: #2a2a2a;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    table th, table td {
+      border: 1px solid #333333;
+      padding: 10px;
+      text-align: left;
+    }
+
+    table th {
+      background-color: #444444;
+      color: #ff3e3e;
+    }
+
+    table td button {
+      background-color: #ff3e3e;
+      color: #ffffff;
+      border: none;
+      padding: 5px 10px;
+      cursor: pointer;
+      border-radius: 4px;
+    }
+
+    table td button:hover {
+      background-color: #ff6666;
+    }
+
+    .details {
+      margin: 20px auto;
+      padding: 15px;
+      background-color: #333333;
+      border-radius: 8px;
+      width: 80%;
+      text-align: left;
+    }
+
+    .details h3 {
+      margin: 0;
+      color: #ff3e3e;
+    }
+
+    .details p {
+      margin: 5px 0;
+    }
+
+    .filter-section {
+      margin-top: 20px;
+    }
+
+    .filter-section input {
+      padding: 10px;
+      margin: 10px 0;
+      width: 200px;
+    }
+
+    .filter-section button {
+      padding: 10px;
+      font-size: 16px;
+      background-color: #ff3e3e;
+      border: none;
+      cursor: pointer;
+    }
+
+    .filter-section button:hover {
+      background-color: #ff6666;
+    }
+  </style>
+</head>
+<body>
+  <header>Admin Panel</header>
+  <div class="container">
+    <h2>User List</h2>
+
+    <!-- Search Bar -->
+    <div class="search-bar">
+      <input type="text" id="search-email-uid" placeholder="Search by Email or UID" />
+      <button onclick="searchUser()">Search</button>
+    </div>
+
+    <!-- Date-Time Filter -->
+    <div class="filter-section">
+      <input type="datetime-local" id="start-date" />
+      <input type="datetime-local" id="end-date" />
+      <button onclick="filterByDate()">Filter by Date</button>
+    </div>
+
+    <!-- User Table -->
+    <table id="user-table">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Email</th>
+          <th>Login Date & Time</th>
+          <th>Login Method</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <!-- User rows will be dynamically populated here -->
+      </tbody>
+    </table>
+
+    <!-- User Details Section -->
+    <div class="details" id="user-details" style="display: none;">
+      <h3>User Details</h3>
+      <p><strong>Name:</strong> <span id="details-name"></span></p>
+      <p><strong>Email:</strong> <span id="details-email"></span></p>
+      <p><strong>Phone:</strong> <span id="details-phone"></span></p>
+      <p><strong>Login Date & Time:</strong> <span id="details-login-time"></span></p>
+      <p><strong>Login Method:</strong> <span id="details-login-method"></span></p>
+      <p><strong>Other Info:</strong> <span id="details-other"></span></p>
+    </div>
+  </div>
+
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+
+  <script>
+    // Firebase Configuration
+    const firebaseConfig = {
+      apiKey: "AIzaSyCBPGSYNVaPPDu7RWee9ymckMaI1VQNjd4",
+      authDomain: "trendy-movie.firebaseapp.com",
+      databaseURL: "https://trendy-movie-default-rtdb.firebaseio.com",
+      projectId: "trendy-movie",
+      storageBucket: "trendy-movie.firebasestorage.app",
+      messagingSenderId: "699469684359",
+      appId: "1:699469684359:web:34cc2adfc8019b89a76222",
+      measurementId: "G-54SX69JVY3"
+    };
+
+    // Initialize Firebase
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    // Fetch and Display Users
+    function fetchUsers() {
+      const userTable = document.getElementById('user-table').getElementsByTagName('tbody')[0];
+      userTable.innerHTML = ''; // Clear existing rows
+
+      db.ref('users').once('value').then(snapshot => {
+        const users = snapshot.val();
+        if (users) {
+          Object.keys(users).forEach(userId => {
+            const user = users[userId];
+            const row = userTable.insertRow();
+            row.innerHTML = `
+              <td>${user.name || 'Unknown'}</td>
+              <td>${user.email || 'N/A'}</td>
+              <td>${user.lastLoginTime || 'N/A'}</td>
+              <td>${user.loginMethod || 'N/A'}</td>
+              <td><button onclick="viewDetails('${userId}')">View Details</button></td>
+            `;
+          });
+        } else {
+          userTable.innerHTML = '<tr><td colspan="5">No users found.</td></tr>';
+        }
+      });
+    }
+
+    // View User Details
+    function viewDetails(userId) {
+      const detailsDiv = document.getElementById('user-details');
+      db.ref('users/' + userId).once('value').then(snapshot => {
+        const user = snapshot.val();
+        if (user) {
+          document.getElementById('details-name').textContent = user.name || 'Unknown';
+          document.getElementById('details-email').textContent = user.email || 'N/A';
+          document.getElementById('details-phone').textContent = user.phone || 'N/A';
+          document.getElementById('details-login-time').textContent = user.lastLoginTime || 'N/A';
+          document.getElementById('details-login-method').textContent = user.loginMethod || 'N/A';
+          document.getElementById('details-other').textContent = user.otherInfo || 'No additional information.';
+          detailsDiv.style.display = 'block';
+        }
+      });
+    }
+
+    // Search User by Email or UID
+    function searchUser() {
+      const searchQuery = document.getElementById('search-email-uid').value.toLowerCase().trim();
+      const userTable = document.getElementById('user-table').getElementsByTagName('tbody')[0];
+      userTable.innerHTML = ''; // Clear existing rows
+
+      db.ref('users').once('value').then(snapshot => {
+        const users = snapshot.val();
+        if (users) {
+          Object.keys(users).forEach(userId => {
+            const user = users[userId];
+            if (user.email.toLowerCase().includes(searchQuery) || userId.toLowerCase().includes(searchQuery)) {
+              const row = userTable.insertRow();
+              row.innerHTML = `
+                <td>${user.name || 'Unknown'}</td>
+                <td>${user.email || 'N/A'}</td>
+                <td>${user.lastLoginTime || 'N/A'}</td>
+                <td>${user.loginMethod || 'N/A'}</td>
+                <td><button onclick="viewDetails('${userId}')">View Details</button></td>
+              `;
+            }
+          });
+        } else {
+          userTable.innerHTML = '<tr><td colspan="5">No users found.</td></tr>';
+        }
+      });
+    }
+
+    // Apply Date-Time Filter for Logins
+    function filterByDate() {
+      const startDate = new Date(document.getElementById('start-date').value).getTime();
+      const endDate = new Date(document.getElementById('end-date').value).getTime();
+      const userTable = document.getElementById('user-table').getElementsByTagName('tbody')[0];
+      userTable.innerHTML = ''; // Clear existing rows
+
+      db.ref('users').once('value').then(snapshot => {
+        const users = snapshot.val();
+        if (users) {
+          Object.keys(users).forEach(userId => {
+            const user = users[userId];
+            const userLoginTime = new Date(user.lastLoginTime).getTime();
+
+            if (userLoginTime >= startDate && userLoginTime <= endDate) {
+              const row = userTable.insertRow();
+              row.innerHTML = `
+                <td>${user.name || 'Unknown'}</td>
+                <td>${user.email || 'N/A'}</td>
+                <td>${user.lastLoginTime || 'N/A'}</td>
+                <td>${user.loginMethod || 'N/A'}</td>
+                <td><button onclick="viewDetails('${userId}')">View Details</button></td>
+              `;
+            }
+          });
+        } else {
+          userTable.innerHTML = '<tr><td colspan="5">No users found for this date range.</td></tr>';
+        }
+      });
+    }
+
+    // Fetch users on page load
+    fetchUsers();
+  </script>
+</body>
+</html>
