@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Admin Panel</title>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
   <style>
     body {
@@ -26,48 +25,101 @@
       font-size: 18px;
       font-weight: bold;
     }
-    .login-container {
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
+    .search-bar, .filter-bar {
+      margin: 10px 0;
     }
-    .login-btn {
-      padding: 15px 30px;
-      font-size: 16px;
-      background-color: #ff5722;
-      color: #fff;
+    input, button, select {
+      width: 100%;
+      padding: 10px;
+      margin: 5px 0;
       border: none;
       border-radius: 5px;
+      font-size: 14px;
+    }
+    button {
+      background-color: #ff5722;
+      color: #fff;
       cursor: pointer;
     }
-    .login-btn:hover {
+    button:hover {
       background-color: #e64a19;
     }
-    .restricted {
+    .user-list {
+      margin-top: 15px;
+    }
+    .user-card {
+      background-color: #2a2a2a;
+      padding: 10px;
+      margin: 5px 0;
+      border-radius: 5px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .user-card .details {
+      text-align: left;
+    }
+    .details h4, .details p {
+      margin: 5px 0;
+    }
+    .details button {
+      margin-top: 5px;
+      font-size: 14px;
+    }
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.8);
+      justify-content: center;
+      align-items: center;
+    }
+    .modal-content {
+      background-color: #333;
+      padding: 20px;
+      border-radius: 5px;
       text-align: center;
-      margin-top: 20px;
-      color: red;
-      font-size: 16px;
+    }
+    .modal-content img {
+      width: 100px;
+      height: 100px;
+      border-radius: 50%;
+      margin: 10px 0;
+    }
+    .modal-content h4, .modal-content p {
+      margin: 10px 0;
+      color: #fff;
+    }
+    .modal-content button {
+      width: auto;
     }
   </style>
 </head>
 <body>
-  <div id="login-screen" class="login-container">
-    <button id="google-login-btn" class="login-btn">Login with Google</button>
-    <p id="restricted-msg" class="restricted" style="display: none;">Access restricted to admin email only.</p>
+  <div class="header">Admin Panel</div>
+  <div class="container">
+    <div class="search-bar">
+      <input type="text" id="search-bar" placeholder="Search by name or email...">
+    </div>
+    <div class="filter-bar">
+      <input type="date" id="filter-date" placeholder="Filter by date">
+    </div>
+    <div id="user-list" class="user-list"></div>
   </div>
 
-  <div id="admin-panel" style="display: none;">
-    <div class="header">Admin Panel</div>
-    <div class="container">
-      <div class="search-bar">
-        <input type="text" id="search-bar" placeholder="Search by name or email...">
-      </div>
-      <div class="filter-bar">
-        <input type="date" id="filter-date" placeholder="Filter by date">
-      </div>
-      <div id="user-list" class="user-list"></div>
+  <!-- User Details Modal -->
+  <div id="user-modal" class="modal">
+    <div class="modal-content">
+      <img id="user-photo" src="" alt="Profile Photo">
+      <h4 id="user-name"></h4>
+      <p id="user-email"></p>
+      <p id="user-phone"></p>
+      <p id="user-login-method"></p>
+      <p id="user-login-time"></p>
+      <button onclick="closeModal()">Close</button>
     </div>
   </div>
 
@@ -85,37 +137,14 @@
     };
     firebase.initializeApp(firebaseConfig);
 
-    const auth = firebase.auth();
     const db = firebase.database();
-
-    const loginScreen = document.getElementById("login-screen");
-    const adminPanel = document.getElementById("admin-panel");
-    const googleLoginBtn = document.getElementById("google-login-btn");
-    const restrictedMsg = document.getElementById("restricted-msg");
-
-    // Google Login
-    googleLoginBtn.addEventListener("click", () => {
-      const provider = new firebase.auth.GoogleAuthProvider();
-      auth.signInWithPopup(provider)
-        .then((result) => {
-          const user = result.user;
-          if (user.email === "support.trendy.movies@gmail.com") {
-            loginScreen.style.display = "none";
-            adminPanel.style.display = "block";
-            fetchUsers();
-          } else {
-            restrictedMsg.style.display = "block";
-            auth.signOut(); // Log out if not authorized
-          }
-        })
-        .catch((error) => {
-          console.error("Login Error:", error.message);
-        });
-    });
+    const userList = document.getElementById("user-list");
+    const searchBar = document.getElementById("search-bar");
+    const filterDate = document.getElementById("filter-date");
+    const modal = document.getElementById("user-modal");
 
     // Fetch all users
     function fetchUsers() {
-      const userList = document.getElementById("user-list");
       db.ref("users").on("value", (snapshot) => {
         userList.innerHTML = ""; // Clear user list
         snapshot.forEach((childSnapshot) => {
@@ -140,9 +169,51 @@
     function viewDetails(userId) {
       db.ref("users/" + userId).once("value", (snapshot) => {
         const user = snapshot.val();
-        alert(`Details of ${user.name || "Unknown"}: \nEmail: ${user.email || "N/A"}\nPhone: ${user.phone || "N/A"}\nLogin Method: ${user.loginMethod || "N/A"}\nLast Login: ${user.lastLoginTime || "N/A"}`);
+        document.getElementById("user-photo").src = user.photoURL || "https://via.placeholder.com/100";
+        document.getElementById("user-name").innerText = "Name: " + (user.name || "N/A");
+        document.getElementById("user-email").innerText = "Email: " + (user.email || "N/A");
+        document.getElementById("user-phone").innerText = "Phone: " + (user.phone || "N/A");
+        document.getElementById("user-login-method").innerText = "Login Method: " + (user.loginMethod || "N/A");
+        document.getElementById("user-login-time").innerText = "Last Login: " + (user.lastLoginTime || "N/A");
+        modal.style.display = "flex";
       });
     }
+
+    // Close modal
+    function closeModal() {
+      modal.style.display = "none";
+    }
+
+    // Search and filter users
+    searchBar.addEventListener("input", () => {
+      const searchValue = searchBar.value.toLowerCase();
+      const userCards = document.querySelectorAll(".user-card");
+      userCards.forEach((card) => {
+        const name = card.querySelector("h4").innerText.toLowerCase();
+        const email = card.querySelector("p").innerText.toLowerCase();
+        if (name.includes(searchValue) || email.includes(searchValue)) {
+          card.style.display = "flex";
+        } else {
+          card.style.display = "none";
+        }
+      });
+    });
+
+    filterDate.addEventListener("change", () => {
+      const filterValue = filterDate.value;
+      const userCards = document.querySelectorAll(".user-card");
+      userCards.forEach((card) => {
+        const loginTime = card.querySelector("p:nth-child(2)").innerText;
+        if (loginTime.includes(filterValue)) {
+          card.style.display = "flex";
+        } else {
+          card.style.display = "none";
+        }
+      });
+    });
+
+    // Fetch users on page load
+    fetchUsers();
   </script>
 </body>
 </html>
