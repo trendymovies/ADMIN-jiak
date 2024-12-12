@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Admin Panel</title>
+  <title>Admin Panel - Excel Theme</title>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
   <style>
@@ -11,8 +11,8 @@
       margin: 0;
       padding: 0;
       font-family: Arial, sans-serif;
-      background-color: #1c1c1c;
-      color: #fff;
+      background-color: #f4f4f4;
+      color: #000;
     }
     .container {
       padding: 10px;
@@ -20,51 +20,66 @@
     .header {
       text-align: center;
       padding: 15px;
-      background-color: #333;
-      color: #ff5722;
+      background-color: #217346;
+      color: #fff;
       font-size: 18px;
       font-weight: bold;
+      position: relative;
     }
-    .search-bar, .filter-bar {
-      margin: 10px 0;
-    }
-    input, button, select {
-      width: 100%;
+    .order-button {
+      position: absolute;
+      top: 50%;
+      right: 10px;
+      transform: translateY(-50%);
+      background-color: #185c34;
+      color: #fff;
       padding: 10px;
-      margin: 5px 0;
       border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    .order-button:hover {
+      background-color: #104623;
+    }
+    .search-bar {
+      margin: 10px 0;
+      display: flex;
+      gap: 10px;
+    }
+    input, button {
+      padding: 10px;
+      border: 1px solid #ddd;
       border-radius: 5px;
       font-size: 14px;
     }
     button {
-      background-color: #ff5722;
+      background-color: #217346;
       color: #fff;
       cursor: pointer;
     }
     button:hover {
-      background-color: #e64a19;
+      background-color: #185c34;
     }
     .user-list {
       margin-top: 15px;
+      border: 1px solid #ddd;
+      border-collapse: collapse;
+      width: 100%;
+    }
+    .user-list th, .user-list td {
+      border: 1px solid #ddd;
+      padding: 10px;
+      text-align: left;
+    }
+    .user-list th {
+      background-color: #d9ead3;
     }
     .user-card {
-      background-color: #2a2a2a;
-      padding: 10px;
-      margin: 5px 0;
-      border-radius: 5px;
       display: flex;
       justify-content: space-between;
       align-items: center;
-    }
-    .user-card .details {
-      text-align: left;
-    }
-    .details h4, .details p {
-      margin: 5px 0;
-    }
-    .details button {
-      margin-top: 5px;
-      font-size: 14px;
+      padding: 10px;
     }
     .modal {
       display: none;
@@ -78,10 +93,11 @@
       align-items: center;
     }
     .modal-content {
-      background-color: #333;
+      background-color: #fff;
       padding: 20px;
       border-radius: 5px;
       text-align: center;
+      color: #000;
     }
     .modal-content img {
       width: 100px;
@@ -89,25 +105,35 @@
       border-radius: 50%;
       margin: 10px 0;
     }
-    .modal-content h4, .modal-content p {
-      margin: 10px 0;
-      color: #fff;
-    }
     .modal-content button {
       width: auto;
     }
   </style>
 </head>
 <body>
-  <div class="header">Admin Panel</div>
+  <div class="header">
+    Admin Panel - Excel Theme
+    <button class="order-button" onclick="redirectToOrders()">Orders</button>
+  </div>
   <div class="container">
     <div class="search-bar">
-      <input type="text" id="search-bar" placeholder="Search by name or email...">
+      <input type="text" id="search-bar" placeholder="Search by name or email">
+      <button onclick="searchUsers()">Search</button>
     </div>
-    <div class="filter-bar">
-      <input type="date" id="filter-date" placeholder="Filter by date">
-    </div>
-    <div id="user-list" class="user-list"></div>
+    <table class="user-list" id="user-list">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Email</th>
+          <th>Login Method</th>
+          <th>Last Login</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <!-- User rows will be appended here -->
+      </tbody>
+    </table>
   </div>
 
   <!-- User Details Modal -->
@@ -138,30 +164,42 @@
     firebase.initializeApp(firebaseConfig);
 
     const db = firebase.database();
-    const userList = document.getElementById("user-list");
+    const userListTable = document.querySelector("#user-list tbody");
     const searchBar = document.getElementById("search-bar");
-    const filterDate = document.getElementById("filter-date");
     const modal = document.getElementById("user-modal");
 
     // Fetch all users
     function fetchUsers() {
       db.ref("users").on("value", (snapshot) => {
-        userList.innerHTML = ""; // Clear user list
+        userListTable.innerHTML = ""; // Clear user list
         snapshot.forEach((childSnapshot) => {
           const user = childSnapshot.val();
-          const userCard = document.createElement("div");
-          userCard.classList.add("user-card");
+          const row = document.createElement("tr");
 
-          userCard.innerHTML = `
-            <div class="details">
-              <h4>${user.name || "Unknown"}</h4>
-              <p>${user.loginTime || "No login time available"}</p>
-              <p>${user.loginMethod || "Unknown method"}</p>
-              <button onclick="viewDetails('${childSnapshot.key}')">View Details</button>
-            </div>
+          row.innerHTML = `
+            <td>${user.name || "Unknown"}</td>
+            <td>${user.email || "Unknown"}</td>
+            <td>${user.loginMethod || "Unknown"}</td>
+            <td>${user.lastLoginTime || "N/A"}</td>
+            <td><button onclick="viewDetails('${childSnapshot.key}')">View Details</button></td>
           `;
-          userList.appendChild(userCard);
+          userListTable.appendChild(row);
         });
+      });
+    }
+
+    // Search users by name or email
+    function searchUsers() {
+      const searchValue = searchBar.value.toLowerCase();
+      const rows = userListTable.querySelectorAll("tr");
+      rows.forEach((row) => {
+        const name = row.cells[0].innerText.toLowerCase();
+        const email = row.cells[1].innerText.toLowerCase();
+        if (name.includes(searchValue) || email.includes(searchValue)) {
+          row.style.display = "table-row";
+        } else {
+          row.style.display = "none";
+        }
       });
     }
 
@@ -179,38 +217,15 @@
       });
     }
 
+    // Redirect to orders page
+    function redirectToOrders() {
+      window.location.href = "https://trendymovies.github.io/manage-order-guwenfuh6/";
+    }
+
     // Close modal
     function closeModal() {
       modal.style.display = "none";
     }
-
-    // Search and filter users
-    searchBar.addEventListener("input", () => {
-      const searchValue = searchBar.value.toLowerCase();
-      const userCards = document.querySelectorAll(".user-card");
-      userCards.forEach((card) => {
-        const name = card.querySelector("h4").innerText.toLowerCase();
-        const email = card.querySelector("p").innerText.toLowerCase();
-        if (name.includes(searchValue) || email.includes(searchValue)) {
-          card.style.display = "flex";
-        } else {
-          card.style.display = "none";
-        }
-      });
-    });
-
-    filterDate.addEventListener("change", () => {
-      const filterValue = filterDate.value;
-      const userCards = document.querySelectorAll(".user-card");
-      userCards.forEach((card) => {
-        const loginTime = card.querySelector("p:nth-child(2)").innerText;
-        if (loginTime.includes(filterValue)) {
-          card.style.display = "flex";
-        } else {
-          card.style.display = "none";
-        }
-      });
-    });
 
     // Fetch users on page load
     fetchUsers();
