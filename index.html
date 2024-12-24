@@ -154,44 +154,61 @@
 
         let users = []; // Store fetched users locally
 
-        // Fetch users and display in table
-        function fetchUsers() {
-            db.ref('users').on('value', (snapshot) => {
-                users = [];
-                userTable.innerHTML = '';
-                snapshot.forEach((childSnapshot) => {
-                    const user = childSnapshot.val();
-                    const userId = childSnapshot.key;
-                    users.push({ ...user, id: userId });
-                    renderUserRow(user, userId);
-                });
-            });
-        }
+      // Fetch users and display the latest registered on top
+function fetchUsers() {
+    db.ref('users').on('value', (snapshot) => {
+        users = [];
+        userTable.innerHTML = '';
+        snapshot.forEach((childSnapshot) => {
+            const user = childSnapshot.val();
+            const userId = childSnapshot.key;
+            users.push({ ...user, id: userId });
+        });
 
-        function renderUserRow(user, userId) {
-            userTable.innerHTML += `
-                <tr>
-                    <td>${user.name}</td>
-                    <td>${user.email}</td>
-                    <td>${user.referralCode}</td>
-                    <td>${new Date(user.lastLoginTime).toLocaleDateString()}</td>
-                    <td>${user.loginMethod}</td>
-                    <td>${user.status || 'Active'}</td>
-                    <td>
-                        <button class="button view" onclick="viewDetails('${userId}')">View</button>
-                    </td>
-                </tr>`;
-        }
+        // Sort users by registrationTime (latest first)
+        users.sort((a, b) => new Date(b.registrationTime) - new Date(a.registrationTime));
 
+        // Render the sorted users
+        users.forEach(user => renderUserRow(user, user.id));
+    });
+}
+
+function renderUserRow(user, userId) {
+    // Format the last login time or show "Never Logged In" if not available
+    const lastLogin = user.lastLoginTime 
+        ? new Date(user.lastLoginTime).toLocaleString() 
+        : "Never Logged In";
+
+    userTable.innerHTML += `
+        <tr>
+            <td>${user.name}</td>
+            <td>${user.email}</td>
+            <td>${user.referralCode}</td>
+            <td>${lastLogin}</td>
+            <td>${user.loginMethod}</td>
+            <td>${user.status || 'Active'}</td>
+            <td>
+                <button class="button view" onclick="viewDetails('${userId}')">View</button>
+            </td>
+        </tr>`;
+}
+
+       
         fetchUsers();
 
         // Filter users based on search input
-        searchInput.addEventListener('input', () => {
-            const query = searchInput.value.toLowerCase();
-            userTable.innerHTML = '';
-            users.filter(user => user.name.toLowerCase().includes(query) || user.email.toLowerCase().includes(query))
-                .forEach(user => renderUserRow(user, user.id));
-        });
+searchInput.addEventListener('input', () => {
+    const query = searchInput.value.toLowerCase().trim(); // Normalize the search query
+    userTable.innerHTML = '';
+    users
+        .filter(user => 
+            user.name?.toLowerCase().includes(query) || 
+            user.email?.toLowerCase().includes(query) || 
+            user.referralCode?.toLowerCase().includes(query)
+        )
+        .forEach(user => renderUserRow(user, user.id));
+});
+
 
         // View user details in a popup
         function viewDetails(userId) {
